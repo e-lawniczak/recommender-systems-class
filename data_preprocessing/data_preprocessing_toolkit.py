@@ -43,6 +43,7 @@ class DataPreprocessingToolkit(object):
         ########################
         # Write your code here #
         ########################
+        return df[df['is_company'] == 0]
 
     @staticmethod
     def filter_out_long_stays(df):
@@ -56,6 +57,7 @@ class DataPreprocessingToolkit(object):
         ########################
         # Write your code here #
         ########################
+        return df[df['length_of_stay'] <= 21]
 
     @staticmethod
     def filter_out_low_prices(df):
@@ -70,6 +72,7 @@ class DataPreprocessingToolkit(object):
         ########################
         # Write your code here #
         ########################
+        return df[df['accommodation_price'] > 50]
 
     @staticmethod
     def fix_date_to(df):
@@ -95,6 +98,10 @@ class DataPreprocessingToolkit(object):
         ########################
         # Write your code here #
         ########################
+        d_from = df['date_from']
+        d_to = df['date_to']
+        df['length_of_stay'] = (d_to - d_from).dt.days
+        return df
 
     @staticmethod
     def add_book_to_arrival(df):
@@ -108,6 +115,8 @@ class DataPreprocessingToolkit(object):
         ########################
         # Write your code here #
         ########################
+        df['book_to_arrival'] = (df['date_from'] - df['booking_date']).dt.days
+        return df
 
     @staticmethod
     def add_nrooms(df):
@@ -134,6 +143,20 @@ class DataPreprocessingToolkit(object):
         ########################
         # Write your code here #
         ########################
+        def check_for_weekdays(row):
+            date = row['date_from']
+            endDate = row['date_to']
+            while date <= endDate:
+                wd = date.dayofweek
+                if wd == 5 or wd == 4:
+                    
+                    return True
+                date = date + pd.DateOffset(1)
+                
+            return False
+        
+        df['weekend_stay'] = df.apply(lambda x: check_for_weekdays(x), axis=1)
+        return df
 
     @staticmethod
     def add_night_price(df):
@@ -148,6 +171,8 @@ class DataPreprocessingToolkit(object):
         ########################
         # Write your code here #
         ########################
+        df['night_price'] = np.round(df['accommodation_price']/(df['length_of_stay'] * df['n_rooms']),2)
+        return df
 
     @staticmethod
     def clip_book_to_arrival(df):
@@ -173,7 +198,10 @@ class DataPreprocessingToolkit(object):
         ########################
         # Write your code here #
         ########################
-
+        
+        df['n_people'] = df.apply(lambda x: x['n_people'] + x['n_children_1'] + x['n_children_2'] + x['n_children_3'], axis=1)
+        
+        return df
     @staticmethod
     def leave_one_from_group_reservations(df):
         """
@@ -223,6 +251,27 @@ class DataPreprocessingToolkit(object):
         ########################
         # Write your code here #
         ########################
+#         print(self.sum_columns )
+#         print(self.mean_columns )
+#         print(self.mode_columns )
+#         print(self.first_columns )
+        
+        
+        a = group_reservations.groupby('group_id')[self.sum_columns].apply(lambda x : x.sum())
+        b = group_reservations.groupby('group_id')[self.mean_columns].mean()
+        c = group_reservations.groupby('group_id')[self.mode_columns].agg(lambda x: x.value_counts().index[0])
+        d = group_reservations.groupby('group_id')[self.first_columns].first()
+ 
+        a = pd.concat([a, b,c,d], axis=1)
+        group_reservations.merge(a, how="inner", on="group_id")
+       
+        
+        non_group_reservations = pd.concat([non_group_reservations, group_reservations], axis=0)
+        
+#         display(non_group_reservations.head(10))
+#         display(group_reservations.head(10))
+    
+        return non_group_reservations
 
     @staticmethod
     def leave_only_ota(df):
@@ -265,6 +314,7 @@ class DataPreprocessingToolkit(object):
         ########################
         # Write your code here #
         ########################
+        
 
     def map_npeople_to_npeople_buckets(self, df):
         """
